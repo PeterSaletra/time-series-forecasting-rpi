@@ -13,8 +13,8 @@ TARGET_INDEX = 0      # Only temperature
 THRESHOLD = 1.0       # Degrees Celsius for "correct" prediction
 
 # Use your scaler values from training (replace with your actual values)
-SCALER_MEAN = 10.0    # Example: replace with scaler.mean_[0]
-SCALER_STD = 5.0      # Example: replace with scaler.scale_[0]
+SCALER_MEAN = 9.45    # Example: replace with scaler.mean_[0]
+SCALER_STD = 8.42      # Example: replace with scaler.scale_[0]
 
 # --- SETUP GPIO ---
 GPIO.setmode(GPIO.BCM)
