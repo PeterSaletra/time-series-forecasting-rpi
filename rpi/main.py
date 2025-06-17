@@ -66,7 +66,7 @@ try:
         else:
             GPIO.output(LED_PIN_RED, GPIO.HIGH)
             time.sleep(0.5)
-            GPIO.output(LED_PIN_RED, GPIO.HIGH) 
+            GPIO.output(LED_PIN_RED, GPIO.LOW) 
             print("LED OFF: Prediction not correct.")
 
         # Update sequence
