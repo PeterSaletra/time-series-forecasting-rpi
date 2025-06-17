@@ -1,8 +1,25 @@
 import time
 import torch
+import logging
 import numpy as np
 import Adafruit_DHT
 import RPi.GPIO as GPIO
+
+
+# --- LOGGER SETUP ---
+logger = logging.getLogger("TempPredictor")
+logger.setLevel(logging.INFO)
+formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
+
+# File handler
+file_handler = logging.FileHandler("prediction.log")
+file_handler.setFormatter(formatter)
+logger.addHandler(file_handler)
+
+# Stream (stdout) handler
+stream_handler = logging.StreamHandler()
+stream_handler.setFormatter(formatter)
+logger.addHandler(stream_handler)
 
 # --- CONFIG ---
 DHT_SENSOR = Adafruit_DHT.DHT11
@@ -31,15 +48,15 @@ model.eval()
 # --- COLLECT INITIAL SEQUENCE ---
 sequence = []
 
-print("Collecting initial temperature readings...")
+logger.info("Collecting initial temperature readings...")
 while len(sequence) < SEQUENCE_LENGTH:
     humidity, temperature = Adafruit_DHT.read_retry(DHT_SENSOR, DHT_PIN)
     if temperature is not None:
         sequence.append([temperature])
-        print(f"Reading {len(sequence)}/{SEQUENCE_LENGTH}: {temperature}°C")
+        logger.info(f"Reading {len(sequence)}/{SEQUENCE_LENGTH}: {temperature}°C")
     else:
-        print("Sensor failure. Retrying...")
-    time.sleep(2)
+        logger.info("Sensor failure. Retrying...")
+    time.sleep(60*60)
 
 # --- MAIN LOOP ---
 try:
@@ -57,28 +74,28 @@ try:
 
         # Read actual temperature
         humidity, actual_temp = Adafruit_DHT.read_retry(DHT_SENSOR, DHT_PIN)
-        print(f"Predicted: {predicted:.2f}°C, Actual: {actual_temp:.2f}°C")
+        logger.info(f"Predicted: {predicted:.2f}°C, Actual: {actual_temp:.2f}°C")
 
         # Light LED if prediction is close
         if abs(predicted - actual_temp) <= THRESHOLD:
             GPIO.output(LED_PIN_GREEN, GPIO.HIGH)
             time.sleep(1)
             GPIO.output(LED_PIN_GREEN, GPIO.LOW)
-            print("LED ON: Prediction correct!")
+            logger.info("LED ON: Prediction correct!")
         else:
             GPIO.output(LED_PIN_RED, GPIO.HIGH)
             time.sleep(1)
             GPIO.output(LED_PIN_RED, GPIO.LOW) 
-            print("LED OFF: Prediction not correct.")
+            logger.info("LED OFF: Prediction not correct.")
 
         # Update sequence
         sequence.append([actual_temp])
         sequence = sequence[-SEQUENCE_LENGTH:]
 
-        time.sleep(3)  # Wait before next prediction
+        time.sleep(60*10)  # Wait before next prediction
 
 except KeyboardInterrupt:
     GPIO.cleanup()
-    print("Exiting...")
+    logger.info("Exiting...")
 
 # ...end of file...
