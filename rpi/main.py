@@ -62,12 +62,12 @@ try:
         # Light LED if prediction is close
         if abs(predicted - actual_temp) <= THRESHOLD:
             GPIO.output(LED_PIN_GREEN, GPIO.HIGH)
-            time.sleep(0.5)
+            time.sleep(1)
             GPIO.output(LED_PIN_GREEN, GPIO.LOW)
             print("LED ON: Prediction correct!")
         else:
             GPIO.output(LED_PIN_RED, GPIO.HIGH)
-            time.sleep(0.5)
+            time.sleep(1)
             GPIO.output(LED_PIN_RED, GPIO.LOW) 
             print("LED OFF: Prediction not correct.")
 
@@ -75,7 +75,7 @@ try:
         sequence.append([actual_temp])
         sequence = sequence[-SEQUENCE_LENGTH:]
 
-        time.sleep(10)  # Wait before next prediction
+        time.sleep(3)  # Wait before next prediction
 
 except KeyboardInterrupt:
     GPIO.cleanup()
