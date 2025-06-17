@@ -7,7 +7,8 @@ import RPi.GPIO as GPIO
 # --- CONFIG ---
 DHT_SENSOR = Adafruit_DHT.DHT11
 DHT_PIN = 4  # GPIO pin for DHT11
-LED_PIN = 17  # GPIO pin for built-in LED
+LED_PIN_RED = 17  # GPIO pin for built-in LED
+LED_PIN_GREEN = 18
 SEQUENCE_LENGTH = 24  # Must match your model
 TARGET_INDEX = 0      # Only temperature
 THRESHOLD = 1.0       # Degrees Celsius for "correct" prediction
@@ -18,7 +19,8 @@ SCALER_STD = 8.42      # Example: replace with scaler.scale_[0]
 
 # --- SETUP GPIO ---
 GPIO.setmode(GPIO.BCM)
-GPIO.setup(LED_PIN, GPIO.OUT)
+GPIO.setup(LED_PIN_GREEN, GPIO.OUT)
+GPIO.setup(LED_PIN_RED, GPIO.OUT)   
 
 # --- LOAD MODEL ---
 model = torch.jit.load("weather_lstm_model.pt")
@@ -57,10 +59,14 @@ try:
 
         # Light LED if prediction is close
         if abs(predicted - actual_temp) <= THRESHOLD:
-            GPIO.output(LED_PIN, GPIO.HIGH)
+            GPIO.output(LED_PIN_GREEN, GPIO.HIGH)
+            time.sleep(0.5)
+            GPIO.output(LED_PIN_GREEN, GPIO.LOW)
             print("LED ON: Prediction correct!")
         else:
-            GPIO.output(LED_PIN, GPIO.LOW)
+            GPIO.output(LED_PIN_RED, GPIO.HIGH)
+            time.sleep(0.5)
+            GPIO.output(LED_PIN_RED, GPIO.HIGH) 
             print("LED OFF: Prediction not correct.")
 
         # Update sequence
