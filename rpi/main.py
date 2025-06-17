@@ -21,6 +21,8 @@ SCALER_STD = 8.42      # Example: replace with scaler.scale_[0]
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(LED_PIN_GREEN, GPIO.OUT)
 GPIO.setup(LED_PIN_RED, GPIO.OUT)   
+GPIO.output(LED_PIN_GREEN, GPIO.LOW)
+GPIO.output(LED_PIN_RED, GPIO.LOW)
 
 # --- LOAD MODEL ---
 model = torch.jit.load("weather_lstm_model.pt")
