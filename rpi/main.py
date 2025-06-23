@@ -1,0 +1,101 @@
+import time
+import torch
+import logging
+import numpy as np
+import Adafruit_DHT
+import RPi.GPIO as GPIO
+
+
+# --- LOGGER SETUP ---
+logger = logging.getLogger("TempPredictor")
+logger.setLevel(logging.INFO)
+formatter = logging.Formatter('%(asctime)s %(levelname)s: %(message)s')
+
+# File handler
+file_handler = logging.FileHandler("prediction.log")
+file_handler.setFormatter(formatter)
+logger.addHandler(file_handler)
+
+# Stream (stdout) handler
+stream_handler = logging.StreamHandler()
+stream_handler.setFormatter(formatter)
+logger.addHandler(stream_handler)
+
+# --- CONFIG ---
+DHT_SENSOR = Adafruit_DHT.DHT11
+DHT_PIN = 4  # GPIO pin for DHT11
+LED_PIN_RED = 17  # GPIO pin for built-in LED
+LED_PIN_GREEN = 18
+SEQUENCE_LENGTH = 24  # Must match your model
+TARGET_INDEX = 0      # Only temperature
+THRESHOLD = 1.0       # Degrees Celsius for "correct" prediction
+
+# Use your scaler values from training (replace with your actual values)
+SCALER_MEAN = 9.45    # Example: replace with scaler.mean_[0]
+SCALER_STD = 8.42      # Example: replace with scaler.scale_[0]
+
+# --- SETUP GPIO ---
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(LED_PIN_GREEN, GPIO.OUT)
+GPIO.setup(LED_PIN_RED, GPIO.OUT)   
+GPIO.output(LED_PIN_GREEN, GPIO.LOW)
+GPIO.output(LED_PIN_RED, GPIO.LOW)
+
+# --- LOAD MODEL ---
+model = torch.jit.load("weather_lstm_model.pt")
+model.eval()
+
+# --- COLLECT INITIAL SEQUENCE ---
+sequence = []
+
+logger.info("Collecting initial temperature readings...")
+while len(sequence) < SEQUENCE_LENGTH:
+    humidity, temperature = Adafruit_DHT.read_retry(DHT_SENSOR, DHT_PIN)
+    if temperature is not None:
+        sequence.append([temperature])
+        logger.info(f"Reading {len(sequence)}/{SEQUENCE_LENGTH}: {temperature}°C")
+    else:
+        logger.info("Sensor failure. Retrying...")
+    time.sleep(60*60)
+
+# --- MAIN LOOP ---
+try:
+    while True:
+        # Scale input
+        seq_np = np.array(sequence)
+        seq_scaled = (seq_np - SCALER_MEAN) / SCALER_STD
+        x_input = torch.tensor(seq_scaled, dtype=torch.float32).unsqueeze(0)  # (1, seq_len, 1)
+
+        # Predict next temperature(s)
+        with torch.no_grad():
+            pred_scaled = model(x_input).squeeze(0)
+        pred_temp = pred_scaled.numpy() * SCALER_STD + SCALER_MEAN
+        predicted = float(pred_temp[0])  # Only first step
+
+        # Read actual temperature
+        humidity, actual_temp = Adafruit_DHT.read_retry(DHT_SENSOR, DHT_PIN)
+        logger.info(f"Predicted: {predicted:.2f}°C, Actual: {actual_temp:.2f}°C")
+
+        # Light LED if prediction is close
+        if abs(predicted - actual_temp) <= THRESHOLD:
+            GPIO.output(LED_PIN_GREEN, GPIO.HIGH)
+            time.sleep(1)
+            GPIO.output(LED_PIN_GREEN, GPIO.LOW)
+            logger.info("LED ON: Prediction correct!")
+        else:
+            GPIO.output(LED_PIN_RED, GPIO.HIGH)
+            time.sleep(1)
+            GPIO.output(LED_PIN_RED, GPIO.LOW) 
+            logger.info("LED OFF: Prediction not correct.")
+
+        # Update sequence
+        sequence.append([actual_temp])
+        sequence = sequence[-SEQUENCE_LENGTH:]
+
+        time.sleep(60*10)  # Wait before next prediction
+
+except KeyboardInterrupt:
+    GPIO.cleanup()
+    logger.info("Exiting...")
+
+# ...end of file...
